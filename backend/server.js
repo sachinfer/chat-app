@@ -1,57 +1,22 @@
-const express = require('express');
-const cors = require('cors');
-const http = require('http');
-const { Server } = require('socket.io');
-require('dotenv').config();
+// Load environment variables
+require("dotenv").config();
 
-const app = express();
-const server = http.createServer(app);
-const io = new Server(server, {
-  cors: { origin: "*" }
-});
-
-app.use(cors());
-app.use(express.json());
-
-// sample endpoint
-app.get("/", (req, res) => {
-  res.send("Chat App Backend is running.");
-});
-
-// socket handling
-io.on("connection", (socket) => {
-  console.log("User connected:", socket.id);
-  socket.on("send_message", (data) => {
-    io.emit("receive_message", data); // broadcast
-  });
-  socket.on("disconnect", () => {
-    console.log("User disconnected:", socket.id);
-  });
-});
-
-const PORT = process.env.PORT || 5000;
-server.listen(PORT, () => console.log(`Server running on ${PORT}`));
-
-const connectDB = require("./db");
-connectDB();
-
-const authRoutes = require("./routes/auth");
-app.use("/api/auth", authRoutes);
-
+// Import dependencies
 const express = require("express");
-const http = require("http");
 const cors = require("cors");
-const dotenv = require("dotenv");
-const connectDB = require("./db");
+const http = require("http");
+const { Server } = require("socket.io");
 const jwt = require("jsonwebtoken");
+const connectDB = require("./db");
 
-dotenv.config();
+// Connect to database
 connectDB();
 
+// Initialize app and server
 const app = express();
 const server = http.createServer(app);
-const { Server } = require("socket.io");
 
+// Apply middleware
 app.use(cors());
 app.use(express.json());
 
@@ -59,15 +24,20 @@ app.use(express.json());
 const authRoutes = require("./routes/auth");
 app.use("/api/auth", authRoutes);
 
-// 🧠 Set up Socket.io
+// Root route
+app.get("/", (req, res) => {
+  res.send("Chat App Backend is running.");
+});
+
+// Setup Socket.io with CORS
 const io = new Server(server, {
   cors: {
-    origin: "*", // set frontend domain in prod
+    origin: "*", // Replace with your frontend domain in production
     methods: ["GET", "POST"]
   }
 });
 
-// 🧠 Middleware to check JWT on socket connection
+// Socket.io authentication middleware
 io.use((socket, next) => {
   const token = socket.handshake.auth.token;
 
@@ -77,7 +47,7 @@ io.use((socket, next) => {
 
   try {
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
-    socket.user = decoded; // we'll access socket.user.id later
+    socket.user = decoded;
     next();
   } catch (err) {
     console.error("Socket auth failed:", err.message);
@@ -85,7 +55,7 @@ io.use((socket, next) => {
   }
 });
 
-// ✅ Socket Events
+// Handle socket events
 io.on("connection", (socket) => {
   console.log(`✅ ${socket.user.id} connected via socket`);
 
@@ -101,6 +71,7 @@ io.on("connection", (socket) => {
   });
 });
 
+// Start the server
 const PORT = process.env.PORT || 5000;
 server.listen(PORT, () => {
   console.log(`🚀 Server running on port ${PORT}`);
