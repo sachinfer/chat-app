@@ -15,7 +15,7 @@ function isValidEmail(email) {
 // Register
 router.post('/register', async (req, res) => {
   try {
-    const { username, email, password } = req.body;
+    const { username, email, password, isAdmin, canViewBehavior } = req.body;
     if (!username || !email || !password) {
       return res.status(400).json({ error: 'All fields are required' });
     }
@@ -30,7 +30,7 @@ router.post('/register', async (req, res) => {
       return res.status(400).json({ error: 'Username or email already exists' });
     }
     const hashedPassword = await bcrypt.hash(password, 10);
-    const user = new User({ username, email, password: hashedPassword });
+    const user = new User({ username, email, password: hashedPassword, isAdmin: !!isAdmin, canViewBehavior: !!canViewBehavior });
     await user.save();
     res.status(201).json({ message: 'User registered successfully' });
   } catch (err) {
@@ -107,6 +107,21 @@ router.get('/admin/stats', async (req, res) => {
       { $sort: { _id: 1 } }
     ]);
     res.json({ totalUsers, totalMessages, messagesPerDay: messages });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ADMIN: Grant canViewBehavior to a user
+router.post('/admin/grant-behavior', async (req, res) => {
+  try {
+    const { email, username } = req.body;
+    if (!email && !username) return res.status(400).json({ error: 'Email or username required' });
+    const user = await User.findOne(email ? { email } : { username });
+    if (!user) return res.status(404).json({ error: 'User not found' });
+    user.canViewBehavior = true;
+    await user.save();
+    res.json({ message: 'Access granted', user });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }

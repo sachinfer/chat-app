@@ -1,30 +1,3 @@
-<<<<<<< HEAD
-version: '3.8'
-
-services:
-  mongo:
-    image: mongo
-    container_name: chatapp-mongo
-    ports:
-      - "27017:27017"
-    volumes:
-      - chatapp-mongo-data:/data/db
-
-  backend:
-    build: .
-    container_name: chatapp-backend
-    ports:
-      - "5000:5000"
-    environment:
-      - MONGO_URI=mongodb://chatapp-mongo:27017/chatapp
-      - JWT_SECRET=supersecretjwtkey
-      - PORT=5000
-    depends_on:
-      - mongo
-
-volumes:
-  chatapp-mongo-data:
-=======
 services:
   backend:
     build: ./backend
@@ -44,4 +17,3 @@ services:
     depends_on:
       - backend
     restart: unless-stopped
->>>>>>> baf8337 (inint changes)

@@ -9,7 +9,7 @@ function formatTime(dateStr) {
   return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 }
 
-export default function ChatBox({ user }) {
+export default function ChatBox({ user, logUserAction }) {
   const [messages, setMessages] = useState([]);
   const [input, setInput] = useState('');
   const [selectedFile, setSelectedFile] = useState(null); // Added for file input
@@ -44,6 +44,11 @@ export default function ChatBox({ user }) {
     e.preventDefault();
     setBotError('');
     if (input.trim() || selectedFile) {
+      if (logUserAction) {
+        let details = input.trim();
+        if (selectedFile) details += ` (file: ${selectedFile.name})`;
+        logUserAction('Chat Message Sent', details);
+      }
       setLoadingBot(true);
       let filePath = null;
 

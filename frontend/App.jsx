@@ -5,10 +5,18 @@ import Register from './pages/Register';
 import ChatBox from './components/ChatBox';
 import ProfileForm from './components/ProfileForm';
 import { io } from 'socket.io-client';
+import UserBehavior from './pages/UserBehavior';
 
 const socket = io('http://localhost:5000', { transports: ['websocket'] });
 
-function Dashboard({ onLogout, token }) {
+function logUserAction(type, details) {
+  const key = 'user_behavior_log';
+  const log = JSON.parse(localStorage.getItem(key) || '[]');
+  log.push({ type, details, timestamp: Date.now() });
+  localStorage.setItem(key, JSON.stringify(log));
+}
+
+function Dashboard({ onLogout, token, onShowBehavior }) {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -50,8 +58,13 @@ function Dashboard({ onLogout, token }) {
     return () => window.removeEventListener('chatHistoryEvent', handler);
   }, []);
 
+  useEffect(() => {
+    logUserAction('Dashboard Visit');
+  }, []);
+
   const handleProfileUpdate = (updatedUser) => {
     setUser(updatedUser);
+    logUserAction('Profile Updated');
   };
 
   if (loading) return <div>Loading dashboard...</div>;
@@ -64,7 +77,12 @@ function Dashboard({ onLogout, token }) {
           {user?.avatar && <img src={user.avatar} alt="avatar" style={{ width: 40, height: 40, borderRadius: '50%', objectFit: 'cover', border: '1px solid #ccc' }} />}
           <h1 style={{ margin: 0 }}>Dashboard</h1>
         </div>
-        <button onClick={onLogout} style={{ padding: '6px 16px', borderRadius: 6, background: '#e74c3c', color: '#fff', border: 'none' }}>Logout</button>
+        <div style={{ display: 'flex', gap: 8 }}>
+          {user?.canViewBehavior && (
+            <button onClick={() => { logUserAction('User Behavior Clicked'); onShowBehavior(); }} style={{ padding: '6px 16px', borderRadius: 6, background: '#2980b9', color: '#fff', border: 'none' }}>User Behavior</button>
+          )}
+          <button onClick={() => { logUserAction('Logout Clicked'); onLogout(); }} style={{ padding: '6px 16px', borderRadius: 6, background: '#e74c3c', color: '#fff', border: 'none' }}>Logout</button>
+        </div>
       </div>
       {notification && <div style={{ background: '#2ecc40', color: '#fff', padding: 8, borderRadius: 6, marginBottom: 12, textAlign: 'center' }}>{notification}</div>}
       <ProfileForm user={user} token={token} onUpdate={handleProfileUpdate} />
@@ -80,7 +98,7 @@ function Dashboard({ onLogout, token }) {
         </div>
       </div>
       <h3>Chat</h3>
-      <ChatBox user={user} />
+      <ChatBox user={user} logUserAction={logUserAction} />
     </div>
   );
 }
@@ -90,6 +108,7 @@ function App() {
   const [token, setToken] = useState(localStorage.getItem('token'));
   const [feedback, setFeedback] = useState('');
   const [error, setError] = useState('');
+  const [user, setUser] = useState(null);
 
   const handleLogin = (token, msg) => {
     setToken(token);
@@ -108,8 +127,26 @@ function App() {
     setFeedback('');
   };
 
+  useEffect(() => {
+    if (token) {
+      fetch('/api/users/me', { headers: { 'Authorization': `Bearer ${token}` } })
+        .then(res => res.json())
+        .then(data => setUser(data))
+        .catch(() => setUser(null));
+    } else {
+      setUser(null);
+    }
+  }, [token]);
+
   if (token) {
-    return <Dashboard token={token} onLogout={() => { localStorage.removeItem('token'); setToken(null); setFeedback(''); setError(''); }} />;
+    if (page === 'behavior') {
+      if (user && user.canViewBehavior) {
+        return <UserBehavior onBack={() => setPage('dashboard')} />;
+      } else {
+        return <div style={{ color: 'red', textAlign: 'center', marginTop: 40 }}>You do not have access to this page.</div>;
+      }
+    }
+    return <Dashboard token={token} onLogout={() => { localStorage.removeItem('token'); setToken(null); setFeedback(''); setError(''); }} onShowBehavior={() => setPage('behavior')} />;
   }
 
   return (
